@@ -25,10 +25,11 @@ var (
 		},
 	}
 	passKey           = randomPassKey()
-	needsAuthForWrite = true
-	needsAuthForRead  = false
+	needsAuthForWrite = flag.Bool("authwrite", true, "whether to require authentication for writing to the engine")
+	needsAuthForRead  = flag.Bool("authread", false, "whether to require authentication for reading from the engine")
+	localhostBypass   = flag.Bool("localhost", true, "whether to bypass authentication for localhost")
 
-	enginePath          = flag.String("engine", "./stockfish-ubuntu-20.04-x86-64-avx2", "path to the engine binary")
+	enginePath          = flag.String("engine", "./stockfish", "path to the engine binary")
 	engineInputChannel  = make(chan string)
 	engineOutputChannel = make(chan string)
 	engineName          = ""
@@ -82,7 +83,7 @@ func spawnEngine() {
 			if strings.HasPrefix(output, "id name ") {
 				engineName = output[8:]
 			}
-			if strings.HasPrefix(output, "bestmove") || strings.HasPrefix(output, "id") || strings.HasPrefix(output, "info") {
+			if strings.HasPrefix(output, "bestmove") || strings.HasPrefix(output, "info") {
 				engineOutputChannel <- output
 			}
 		}
@@ -146,6 +147,10 @@ func wsHandler(writer http.ResponseWriter, request *http.Request) {
 		incorrectAttempts: 0,
 	}
 
+	if *localhostBypass && strings.HasPrefix(connection.RemoteAddr().String(), "127.0.0.1:") {
+		user.isAuthenticated = true
+	}
+
 	users[connection] = &user
 
 	defer func() {
@@ -172,6 +177,12 @@ func wsHandler(writer http.ResponseWriter, request *http.Request) {
 				break
 			}
 		} else if parts[0] == "whatengine" {
+			if !user.isAuthenticated && *needsAuthForRead {
+				if !user.send("autherr") {
+					break
+				}
+				continue
+			}
 			if !user.send(fmt.Sprintf("engine %s", engineName)) {
 				break
 			}
@@ -189,7 +200,7 @@ func wsHandler(writer http.ResponseWriter, request *http.Request) {
 				user.incorrectAttempts++
 			}
 		} else if parts[0] == "sub" {
-			if !user.isAuthenticated && needsAuthForRead {
+			if !user.isAuthenticated && *needsAuthForRead {
 				if !user.send("autherr") {
 					break
 				}
@@ -201,9 +212,13 @@ func wsHandler(writer http.ResponseWriter, request *http.Request) {
 				if !user.send("subok") {
 					break
 				}
+			} else {
+				if !user.send("suberr") {
+					break
+				}
 			}
 		} else if parts[0] == "unsub" {
-			if !user.isAuthenticated && needsAuthForRead {
+			if !user.isAuthenticated && *needsAuthForRead {
 				if !user.send("autherr") {
 					break
 				}
@@ -215,9 +230,13 @@ func wsHandler(writer http.ResponseWriter, request *http.Request) {
 				if !user.send("unsubok") {
 					break
 				}
+			} else {
+				if !user.send("unsuberr") {
+					break
+				}
 			}
 		} else if parts[0] == "lock" {
-			if !user.isAuthenticated && needsAuthForWrite {
+			if !user.isAuthenticated && *needsAuthForWrite {
 				if !user.send("autherr") {
 					break
 				}
@@ -235,7 +254,7 @@ func wsHandler(writer http.ResponseWriter, request *http.Request) {
 				}
 			}
 		} else if parts[0] == "unlock" {
-			if !user.isAuthenticated && needsAuthForWrite {
+			if !user.isAuthenticated && *needsAuthForWrite {
 				if !user.send("autherr") {
 					break
 				}
@@ -253,7 +272,7 @@ func wsHandler(writer http.ResponseWriter, request *http.Request) {
 				}
 			}
 		} else {
-			if !user.isAuthenticated && needsAuthForWrite {
+			if !user.isAuthenticated && *needsAuthForWrite {
 				if !user.send("autherr") {
 					break
 				}
@@ -276,6 +295,9 @@ func main() {
 	go spawnEngine()
 	go writePump()
 	log.Print("Server started, passkey: ", passKey)
+	log.Print("Server is requesting authentication for read operations: ", *needsAuthForRead)
+	log.Print("Server is requesting authentication for write operations: ", *needsAuthForWrite)
+	log.Print("Server is bypassing authentication for localhost connections: ", *localhostBypass)
 	panic(http.ListenAndServe(*addr, nil))
 }
 
