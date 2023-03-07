@@ -28,9 +28,10 @@ var (
 	needsAuthForWrite = true
 	needsAuthForRead  = false
 
-	enginePath          = flag.String("engine", "./stockfish-windows-2022-x86-64-avx2.exe", "path to the engine binary")
+	enginePath          = flag.String("engine", "./stockfish-ubuntu-20.04-x86-64-avx2", "path to the engine binary")
 	engineInputChannel  = make(chan string)
 	engineOutputChannel = make(chan string)
+	engineName          = ""
 )
 
 func randomPassKey() string {
@@ -77,7 +78,10 @@ func spawnEngine() {
 		for scanner.Scan() {
 			// Send the output to a channel for further processing
 			output := scanner.Text()
-			fmt.Println(output)
+			fmt.Println("engine: " + output)
+			if strings.HasPrefix(output, "id name ") {
+				engineName = output[8:]
+			}
 			if strings.HasPrefix(output, "bestmove") || strings.HasPrefix(output, "id") || strings.HasPrefix(output, "info") {
 				engineOutputChannel <- output
 			}
@@ -86,6 +90,7 @@ func spawnEngine() {
 
 	engineInputChannel <- "uci"
 	engineInputChannel <- "isready"
+	engineInputChannel <- "setoption name Threads value 10"
 }
 
 var isEngineLocked = false
@@ -164,6 +169,10 @@ func wsHandler(writer http.ResponseWriter, request *http.Request) {
 
 		if parts[0] == "whoareyou" {
 			if !user.send(fmt.Sprintf("iam %sv%s", namespace, version)) {
+				break
+			}
+		} else if parts[0] == "whatengine" {
+			if !user.send(fmt.Sprintf("engine %s", engineName)) {
 				break
 			}
 		} else if parts[0] == "auth" {
@@ -265,6 +274,7 @@ func main() {
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/", home)
 	go spawnEngine()
+	go writePump()
 	log.Print("Server started, passkey: ", passKey)
 	panic(http.ListenAndServe(*addr, nil))
 }

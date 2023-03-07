@@ -11,6 +11,10 @@ message: whoareyou
 
 reponse: iam <name>v<version>
 
+message: whatengine
+
+response: engine <name>
+
 Useful for checking if the server is outdated compared to the userscript.
 ``` 
 ### Authentication
