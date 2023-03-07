@@ -15,7 +15,10 @@ A simple server to run a chess engine and communicate with the chesshook userscr
 - `./main -engine ./<name of engine>`
     - the output should be similar to:
     ```
-    Server started, passkey: E1MXwddax1
+    Server started, passkey: 4QZB13qLMj
+    Server is requesting authentication for read operations: false
+    Server is requesting authentication for write operations: true
+    Server is bypassing authentication for localhost connections: true
     engine: Stockfish 15.1 by the Stockfish developers (see AUTHORS file)
     engine: id name Stockfish 15.1
     ...
@@ -23,7 +26,7 @@ A simple server to run a chess engine and communicate with the chesshook userscr
 - Configure the Chesshook userscript.
     - set the engine to external.
     - set the passkey to the passkey printed to your console. it will change every time the server is restarted.
-        - this is not necessary if you do not set `-localhostbypass` to false.
+        - this is not necessary if you do not set `-localhostbypass` to false, and the server is on localhost.
     - in the server is running on the same machine, the url of the engine is `ws://localhost:8080/ws`.
         - if the server is running on a different machine, replace `localhost` with the address of the machine.
     - go to the "external" page from the hamburger menu.
