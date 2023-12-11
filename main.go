@@ -30,6 +30,7 @@ var (
 	localhostBypass   = flag.Bool("localhost", true, "whether to bypass authentication for localhost")
 
 	enginePath          = flag.String("engine", "./stockfish", "path to the engine binary")
+	uciArgsFlag         = flag.String("uciargs", "", "arguments to pass to the engine on startup, split with \";\"")
 	engineInputChannel  = make(chan string)
 	engineOutputChannel = make(chan string)
 	engineName          = ""
@@ -46,7 +47,8 @@ func randomPassKey() string {
 }
 
 func spawnEngine() {
-	engine := exec.Command(*enginePath)
+	engineArgs := strings.Split(*enginePath, " ")
+	engine := exec.Command(engineArgs[0], engineArgs[1:]...)
 	stdin, err := engine.StdinPipe()
 
 	if err != nil {
@@ -91,7 +93,11 @@ func spawnEngine() {
 
 	engineInputChannel <- "uci"
 	engineInputChannel <- "isready"
-	engineInputChannel <- "setoption name Threads value 10"
+
+	uciArgs := strings.Split(*uciArgsFlag, ";")
+	for _, arg := range uciArgs {
+		engineInputChannel <- arg
+	}
 }
 
 var isEngineLocked = false

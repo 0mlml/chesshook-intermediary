@@ -11,6 +11,7 @@ A simple server to run a chess engine and communicate with the chesshook userscr
     - `-authwrite <bool>`: whether the passkey is required for write access. default: true
     - `-authread <bool>`: whether the passkey is required for read access. default: false
     - `-localhostbypass <bool>`: whether the passkey is required for localhost connections. default: true
+    - `-uciargs <string>`: arguments to pass to the engine on startup, split with semicolons ";". Should look like "setoption name Skill Level value 20;setoption name Threads value 10"
 - Place the engine executable in the same folder as the server executable.
 - `./main -engine ./<name of engine>`
     - the output should be similar to:
