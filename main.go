@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -104,6 +105,7 @@ var isEngineLocked = false
 
 type User struct {
 	connection *websocket.Conn
+	mu         sync.Mutex
 
 	isSubscribed bool
 	hasLock      bool
@@ -126,6 +128,9 @@ func writePump() {
 }
 
 func (user *User) send(message string) bool {
+	user.mu.Lock()
+	defer user.mu.Unlock()
+
 	err := user.connection.WriteMessage(websocket.TextMessage, []byte(message))
 	if err != nil {
 		log.Println("write:", err)
